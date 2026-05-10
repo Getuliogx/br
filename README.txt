@@ -1,16 +1,10 @@
-# Tradutor de Texto EN -> PT-BR
+# Tradutor EN -> PT-BR Corrigido
 
-Abra index.html no navegador.
+Abra index.html.
 
-Ele faz:
-- cola texto em inglês
-- traduz para texto PT-BR normal
-- copia o texto traduzido
-- baixa TXT
-- opção de remover acentos
-- opção de forçar maiúsculas
-- opção de quebrar linhas por limite
-- modo offline básico para menus comuns de jogos
-
-Para tradução automática real, usa LibreTranslate.
-Se o endpoint público bloquear, coloque outro endpoint ou use o modo offline.
+Mudança:
+- removido LibreTranslate, porque o endpoint público exige chave e dá erro 400.
+- agora usa MyMemory sem campo de chave.
+- saída é texto normal PT-BR.
+- botão offline traduz menus comuns.
+- TXT baixado sai em UTF-8.
