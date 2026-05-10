@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tradutor de Texto EN → PT-BR</title>
+<style>
+:root{--bg:#0b0f16;--card:#121a26;--txt:#e8eef8;--muted:#9fb0c8;--ok:#59d38c;--bad:#ff6b6b;--warn:#ffd166;--line:#27364d}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--txt)}
+header{padding:22px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#121a26,#0b0f16)}
+main{max-width:1150px;margin:auto;padding:16px}
+h1{font-size:22px;margin:0 0 8px}
+p{color:var(--muted);line-height:1.45}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:850px){.row{grid-template-columns:1fr}}
+textarea,input,select,button{width:100%;border-radius:10px;border:1px solid var(--line);background:#0e1520;color:var(--txt);padding:11px;font-size:15px}
+textarea{min-height:270px;resize:vertical;line-height:1.4}
+button{cursor:pointer;background:#23324a;font-weight:bold}
+button:hover{background:#2d405e}
+button:disabled{opacity:.55;cursor:not-allowed}
+small,.hint{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.chk{display:flex;gap:8px;align-items:center;background:#0e1520;border:1px solid var(--line);padding:8px;border-radius:10px}
+.chk input{width:auto}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;color:var(--muted);font-size:12px;margin:2px}
+code{background:#0e1520;border:1px solid var(--line);padding:2px 5px;border-radius:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tradutor de Texto EN → PT-BR</h1>
+  <p>Cole o texto em inglês e receba o texto traduzido em português do Brasil, normal, pronto para copiar.</p>
+</header>
+
+<main>
+  <div class="card">
+    <b>Configuração da tradução automática</b>
+    <p class="hint">Usa LibreTranslate. Se o endpoint público bloquear, coloque outro endpoint ou use o botão de tradução offline para menus comuns.</p>
+    <div class="row">
+      <div>
+        <label>Endpoint LibreTranslate</label>
+        <input id="endpoint" value="https://libretranslate.com/translate">
+      </div>
+      <div>
+        <label>API Key, se precisar</label>
+        <input id="apiKey" placeholder="opcional">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Opções do texto final</b>
+    <div class="grid">
+      <label class="chk"><input id="preserveLines" type="checkbox" checked> Traduzir linha por linha</label>
+      <label class="chk"><input id="romSafe" type="checkbox"> Remover acentos</label>
+      <label class="chk"><input id="upperCase" type="checkbox"> Forçar MAIÚSCULAS</label>
+      <label class="chk"><input id="limitLength" type="checkbox"> Quebrar linhas por limite</label>
+    </div>
+    <br>
+    <div class="row">
+      <div>
+        <label>Limite por linha</label>
+        <input id="lineLimit" type="number" value="32" min="1">
+      </div>
+      <div>
+        <label>Separador de linha ao copiar/baixar</label>
+        <select id="newlineMode">
+          <option value="lf" selected>Normal</option>
+          <option value="crlf">Windows CRLF</option>
+          <option value="zero">Separar linhas com símbolo {00}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card row">
+    <div>
+      <b>Texto em inglês</b>
+      <textarea id="inputText" placeholder="Ex:
+NEW GAME
+CONTINUE
+PASSWORD
+PRESS START BUTTON"></textarea>
+      <br><br>
+      <div class="grid">
+        <button id="translateBtn">Traduzir para PT-BR</button>
+        <button id="offlineBtn">Traduzir menus offline</button>
+      </div>
+    </div>
+    <div>
+      <b>Texto traduzido PT-BR</b>
+      <textarea id="outputText" placeholder="O texto traduzido aparece aqui."></textarea>
+      <br><br>
+      <div class="grid">
+        <button id="copyBtn">Copiar texto traduzido</button>
+        <button id="downloadBtn">Baixar TXT</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Status</b>
+    <p id="status" class="hint">Pronto.</p>
+    <div id="stats"></div>
+  </div>
+
+  <div class="card">
+    <b>Observação para ROM</b>
+    <p class="warn">Esse site entrega texto PT-BR normal. Se for ROM SNES, Mega Drive, GBA etc., talvez o jogo não aceite acentos ou UTF-8. Nesse caso ative “Remover acentos” e “Forçar MAIÚSCULAS”, ou depois converta para a tabela própria da ROM.</p>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const gameDict = new Map(Object.entries({
+  "NEW GAME":"NOVO JOGO",
+  "CONTINUE":"CONTINUAR",
+  "LOAD GAME":"CARREGAR JOGO",
+  "SAVE GAME":"SALVAR JOGO",
+  "PASSWORD":"SENHA",
+  "OPTIONS":"OPÇÕES",
+  "OPTION":"OPÇÃO",
+  "START":"INICIAR",
+  "PRESS START":"APERTE START",
+  "PRESS START BUTTON":"APERTE O BOTÃO START",
+  "GAME OVER":"FIM DE JOGO",
+  "THE END":"FIM",
+  "YES":"SIM",
+  "NO":"NÃO",
+  "ON":"LIGADO",
+  "OFF":"DESLIGADO",
+  "EXIT":"SAIR",
+  "BACK":"VOLTAR",
+  "NEXT":"PRÓXIMO",
+  "ITEM":"ITEM",
+  "ITEMS":"ITENS",
+  "EQUIP":"EQUIPAR",
+  "STATUS":"STATUS",
+  "MAGIC":"MAGIA",
+  "ATTACK":"ATACAR",
+  "DEFEND":"DEFENDER",
+  "RUN":"FUGIR",
+  "FIGHT":"LUTAR",
+  "LEVEL":"NÍVEL",
+  "STAGE":"FASE",
+  "WORLD":"MUNDO",
+  "SELECT":"SELECIONAR",
+  "PLAYER":"JOGADOR",
+  "1 PLAYER":"1 JOGADOR",
+  "2 PLAYERS":"2 JOGADORES",
+  "INSERT COIN":"INSIRA FICHA",
+  "PAUSE":"PAUSA",
+  "RESUME":"CONTINUAR",
+  "SOUND":"SOM",
+  "MUSIC":"MÚSICA",
+  "LANGUAGE":"IDIOMA",
+  "CONFIG":"CONFIG",
+  "DIFFICULTY":"DIFICULDADE",
+  "EASY":"FÁCIL",
+  "NORMAL":"NORMAL",
+  "HARD":"DIFÍCIL",
+  "VERY HARD":"MUITO DIFÍCIL",
+  "ARE YOU SURE?":"TEM CERTEZA?",
+  "PLEASE WAIT":"AGUARDE",
+  "TRY AGAIN":"TENTAR NOVAMENTE",
+  "SELECT GAME":"SELECIONE O JOGO",
+  "DELETE":"APAGAR",
+  "CANCEL":"CANCELAR",
+  "CONFIRM":"CONFIRMAR"
+}));
+
+function setStatus(msg, cls="hint"){
+  $("status").className = cls;
+  $("status").textContent = msg;
+}
+function removeAccents(s){
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[“”]/g,'"').replace(/[‘’]/g,"'")
+    .replace(/ç/g,"c").replace(/Ç/g,"C");
+}
+function wrapLine(line, max){
+  if(!max || line.length <= max) return line;
+  const words = line.split(/(\s+)/);
+  let out = "", cur = "";
+  for(const w of words){
+    if((cur + w).length > max && cur.trim()){
+      out += cur.trimEnd() + "\n";
+      cur = w.trimStart();
+    }else cur += w;
+  }
+  return out + cur;
+}
+function processText(s){
+  if($("romSafe").checked) s = removeAccents(s);
+  if($("upperCase").checked) s = s.toUpperCase();
+  if($("limitLength").checked){
+    const lim = parseInt($("lineLimit").value || "32", 10);
+    s = s.split(/\r?\n/).map(line => wrapLine(line, lim)).join("\n");
+  }
+  if($("newlineMode").value === "crlf") s = s.replace(/\r?\n/g, "\r\n");
+  if($("newlineMode").value === "zero") s = s.replace(/\r?\n/g, "{00}");
+  return s;
+}
+function updateStats(){
+  const s = processText($("outputText").value);
+  $("stats").innerHTML = `
+    <span class="pill">Caracteres: ${s.length}</span>
+    <span class="pill">Linhas: ${s.split(/\r?\n|\{00\}/).length}</span>
+  `;
+}
+async function translateLibre(text){
+  const endpoint = $("endpoint").value.trim();
+  const apiKey = $("apiKey").value.trim();
+  const payload = {
+    q: text,
+    source: "en",
+    target: "pt",
+    format: "text"
+  };
+  if(apiKey) payload.api_key = apiKey;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  if(!res.ok){
+    let msg = "";
+    try { msg = await res.text(); } catch(e){}
+    throw new Error("HTTP " + res.status + (msg ? ": " + msg.slice(0,180) : ""));
+  }
+
+  const data = await res.json();
+  return data.translatedText || data.translation || "";
+}
+function quickDictTranslate(text){
+  return text.split(/\r?\n/).map(line => {
+    const key = line.trim().toUpperCase();
+    if(gameDict.has(key)) return gameDict.get(key);
+
+    let out = line;
+    const sorted = [...gameDict.keys()].sort((a,b)=>b.length-a.length);
+    for(const k of sorted){
+      const re = new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
+      out = out.replace(re, gameDict.get(k));
+    }
+    return out;
+  }).join("\n");
+}
+function applyOutput(s){
+  $("outputText").value = processText(s);
+  updateStats();
+}
+
+$("translateBtn").addEventListener("click", async () => {
+  const txt = $("inputText").value;
+  if(!txt.trim()){ alert("Cole o texto em inglês primeiro."); return; }
+
+  $("translateBtn").disabled = true;
+  setStatus("Traduzindo...");
+
+  try{
+    let result = "";
+    if($("preserveLines").checked){
+      const lines = txt.split(/\r?\n/);
+      const translated = [];
+      for(let i=0;i<lines.length;i++){
+        const line = lines[i];
+        if(!line.trim()){ translated.push(""); continue; }
+        setStatus(`Traduzindo linha ${i+1}/${lines.length}...`);
+        translated.push(await translateLibre(line));
+      }
+      result = translated.join("\n");
+    }else{
+      result = await translateLibre(txt);
+    }
+
+    applyOutput(result);
+    setStatus("Tradução concluída. Texto PT-BR pronto para copiar.", "ok");
+  }catch(e){
+    setStatus("Falhou na tradução automática: " + e.message + ". Tente outro endpoint ou use o modo offline.", "bad");
+  }finally{
+    $("translateBtn").disabled = false;
+  }
+});
+
+$("offlineBtn").addEventListener("click", () => {
+  const txt = $("inputText").value;
+  if(!txt.trim()){ alert("Cole o texto em inglês primeiro."); return; }
+  applyOutput(quickDictTranslate(txt));
+  setStatus("Tradução offline básica aplicada.", "ok");
+});
+
+$("copyBtn").addEventListener("click", async () => {
+  const text = processText($("outputText").value);
+  await navigator.clipboard.writeText(text);
+  updateStats();
+  setStatus("Texto traduzido copiado.", "ok");
+});
+
+$("downloadBtn").addEventListener("click", () => {
+  const text = processText($("outputText").value);
+  const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "texto_ptbr.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("TXT baixado.", "ok");
+});
+
+$("outputText").addEventListener("input", updateStats);
+for(const id of ["romSafe","upperCase","limitLength","lineLimit","newlineMode"]){
+  $(id).addEventListener("change", () => {
+    $("outputText").value = processText($("outputText").value);
+    updateStats();
+  });
+}
+updateStats();
+</script>
+</body>
+</html>
